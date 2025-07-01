@@ -1,0 +1,13 @@
+flask
+flask-cors
+base64
+cv2
+deepface
+fastapi
+BaseModel
+transformers
+torch
+numpy
+scikit-learn
+pandas
+requests
