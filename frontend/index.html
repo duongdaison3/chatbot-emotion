@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Cảm Xúc AI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            text-align: center;
+        }
+        h1 {
+            color: #1c1e21;
+        }
+        #video-container {
+            position: relative;
+            border: 3px solid #ccc;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        video {
+            display: block;
+            transform: scaleX(-1);
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #1877f2;
+            color: white;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #166fe5;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background-color: #e4e6eb;
+            color: #bcc0c4;
+            cursor: not-allowed;
+            transform: translateY(0);
+        }
+        
+        /* -- THAY ĐỔI: Giao diện hiển thị kết quả -- */
+        #result-container {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            min-width: 500px;
+            max-width: 90%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        #emotion-result {
+            font-size: 20px;
+            color: #606770;
+        }
+        #emotion-result span {
+            font-weight: bold;
+            text-transform: capitalize;
+            color: #1877f2;
+        }
+        #advice-result {
+            margin-top: 10px;
+            font-size: 22px;
+            font-style: italic;
+            color: #1c1e21;
+            line-height: 1.5;
+        }
+        /* -- KẾT THÚC THAY ĐỔI -- */
+
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>Chatbot Cảm Xúc AI</h1>
+
+    <div id="video-container">
+        <video id="video" width="640" height="480" autoplay playsinline></video>
+    </div>
+    
+    <button id="captureButton">AI ơi, nói gì đi!</button>
+    
+    <div id="result-container">
+        <p id="emotion-result">Cảm xúc của bạn sẽ hiện ở đây</p>
+        <p id="advice-result">Và AI sẽ đưa ra lời khuyên...</p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const captureButton = document.getElementById('captureButton');
+        // THAY ĐỔI: Lấy các element mới
+        const emotionResultP = document.getElementById('emotion-result');
+        const adviceResultP = document.getElementById('advice-result');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+
+        const API_URL = 'http://127.0.0.1:8000/api/analyze';
+
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = stream;
+                video.addEventListener('loadedmetadata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                });
+            } catch (err) {
+                adviceResultP.textContent = "Lỗi: Không thể truy cập camera.";
+            }
+        }
+
+        // THAY ĐỔI: Cập nhật hàm phân tích để hiển thị cả 2 kết quả
+        async function analyzeEmotion(base64Image) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Image })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Lỗi từ server');
+                }
+
+                const data = await response.json();
+                
+                // Hiển thị kết quả cảm xúc
+                emotionResultP.innerHTML = `Tôi nhận thấy bạn đang cảm thấy <span>${data.emotion}</span>.`;
+                
+                // Hiển thị lời khuyên từ AI
+                adviceResultP.textContent = data.advice;
+
+            } catch (error) {
+                emotionResultP.textContent = "Đã có lỗi xảy ra";
+                adviceResultP.textContent = error.message;
+            } finally {
+                captureButton.disabled = false;
+                captureButton.textContent = 'AI ơi, nói gì đi!';
+            }
+        }
+
+        captureButton.addEventListener('click', () => {
+            captureButton.disabled = true;
+            // THAY ĐỔI: Cập nhật trạng thái chờ
+            emotionResultP.textContent = "Đang nhận diện khuôn mặt...";
+            adviceResultP.textContent = "AI đang suy nghĩ... 🤔";
+
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64Image = canvas.toDataURL('image/jpeg');
+            context.setTransform(1, 0, 0, 1, 0, 0);
+
+            analyzeEmotion(base64Image);
+        });
+
+        setupCamera();
+    </script>
+</body>
+</html>
